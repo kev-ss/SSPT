@@ -15,7 +15,7 @@ print (d1), "	| Next full Moon"
 print (d4), "	| Next last quarter Moon"
 
 m=ephem.Moon(now)
-epoch=('2015')
-print "Moon is actually: ", (ephem.constellation(m))
+epoch=(strftime("%Y"))
+print "Moon is actually:", (ephem.constellation(m))
 
 quit()
