@@ -12,11 +12,13 @@
 #define PyUnicode_Type PyString_Type
 #define PyUnicode_AsUTF8 PyString_AsString
 #define PyVarObject_HEAD_INIT(p, b) PyObject_HEAD_INIT(p) 0,
+#define OB_REFCNT ob_refcnt
 #define OB_TYPE ob_type
 #else
 #define PyUnicode_Check3 PyUnicode_Check
+#define OB_REFCNT ob_base.ob_refcnt
 #define OB_TYPE ob_base.ob_type
-#if PY_MINOR_VERSION == 2
+#if PY_MINOR_VERSION == 0 || PY_MINOR_VERSION == 1 || PY_MINOR_VERSION == 2
 #define PyUnicode_AsUTF8 _PyUnicode_AsString
 #endif
 #endif
@@ -497,18 +499,23 @@ static PyObject *Date_new(PyObject *self, PyObject *args, PyObject *kw)
      return build_Date(mjd);
 }
 
-static char *Date_format(PyObject *self)
+static char *Date_format_value(double value)
 {
-     DateObject *d = (DateObject*) self;
      static char buffer[64];
      int year, month, day, hour, minute;
      double second;
      /* Note the offset, which makes us round instead of truncate. */
-     mjd_six(d->ob_fval + 0.5 / 24.0 / 60.0 / 60.0,
+     mjd_six(value + 0.5 / 24.0 / 60.0 / 60.0,
              &year, &month, &day, &hour, &minute, &second);
      sprintf(buffer, "%d/%d/%d %02d:%02d:%02d",
 	     year, month, day, hour, minute, (int) second);
      return buffer;
+}
+
+static char *Date_format(PyObject *self)
+{
+     DateObject *d = (DateObject*) self;
+     return Date_format_value(d->ob_fval);
 }
 
 static PyObject* Date_str(PyObject *self)
@@ -1280,6 +1287,16 @@ static PyObject* Body_compute(PyObject *self, PyObject *args, PyObject *kwds)
 	  body->obj.o_flags = VALID_GEO;
      }
 
+     if (body->obj.o_type == EARTHSAT) {
+          double days_from_epoch = abs(body->obj.es_epoch - body->now.n_mjd);
+          if (days_from_epoch > 365.0) {
+	       PyErr_Format(PyExc_ValueError, "TLE elements are valid for"
+               " a few weeks around their epoch, but you are asking about"
+               " a date %d days from the epoch", (int) days_from_epoch);
+               goto fail;
+          }
+     }
+
      Py_INCREF(Py_None);
      return Py_None;
 
@@ -1314,12 +1331,12 @@ static PyObject* Body_writedb(PyObject *self)
 
 static PyObject* Body_copy(PyObject *self)
 {
-     PyObject *newbody = _PyObject_New(self->ob_type);
+     Body *newbody = self->ob_type->tp_alloc(self->ob_type, 0);
      if (!newbody) return 0;
      memcpy(newbody, self, self->ob_type->tp_basicsize);
-     newbody->ob_refcnt = 1;  /* since memcpy will have overwritten it */
-     Py_XINCREF(((Body*) self)->name);
-     return newbody;
+     newbody->OB_REFCNT = 1;  /* since memcpy will have overwritten it */
+     Py_XINCREF(newbody->name);
+     return (PyObject*) newbody;
 }
 
 static PyObject* Body_repr(PyObject *body_object)
@@ -1413,7 +1430,11 @@ static int Body_obj_cir(Body *body, char *fieldname, unsigned topocentric)
 	  return 0;
      pref_set(PREF_EQUATORIAL, body->obj.o_flags & VALID_TOPO ?
 	      PREF_TOPO : PREF_GEO);
-     obj_cir(& body->now, & body->obj);
+     if (obj_cir(& body->now, & body->obj) == -1) {
+	  PyErr_Format(PyExc_RuntimeError, "cannot compute the body's position"
+                       " at %s", Date_format_value(body->now.n_mjd));
+	  return -1;
+     }
      body->obj.o_flags |= VALID_OBJ;
      return 0;
 }

@@ -1,6 +1,17 @@
 """Modest database of more than a hundred world cities."""
 
 import ephem
+import json
+import sys
+from math import radians
+
+_python3 = sys.version_info > (3,)
+if _python3:
+    from urllib.parse import urlencode
+    from urllib.request import urlopen
+else:
+    from urllib import urlencode
+    from urllib2 import urlopen
 
 _city_data = {
     'London': ('51.5001524', '-0.1262362', 14.605533),  # United Kingdom
@@ -65,13 +76,13 @@ _city_data = {
     'Luxembourg': ('49.815273', '6.129583', 305.747925),  # Luxembourg
     'Lyon': ('45.767299', '4.8343287', 182.810547),  # France
     'Mumbai': ('19.0176147', '72.8561644', 12.408822),  # India
-    'New Delhi': ('28.635308', '77.22496', 213.999054),  # 110001
+    'New Delhi': ('28.635308', '77.22496', 213.999054),  # India
     'Philadelphia': ('39.952335', '-75.163789', 12.465688),  # United States
     'Rio de Janeiro': ('-22.9035393', '-43.2095869', 9.521935),  # Brazil
     'Tel Aviv': ('32.0599254', '34.7851264', 21.114218),  # Israel
     'Vienna': ('48.20662', '16.38282', 170.493149),  # Austria
     'Abu Dhabi': ('24.4666667', '54.3666667', 6.296038),  # United Arab Emirates
-    'Almaty': ('43.255058', '76.912628', 785.522156),  # 050000
+    'Almaty': ('43.255058', '76.912628', 785.522156),  # Kazakhstan
     'Birmingham': ('52.4829614', '-1.893592', 141.448563),  # United Kingdom
     'Bogota': ('4.5980556', '-74.0758333', 2614.037109),  # Colombia
     'Bratislava': ('48.1483765', '17.1073105', 155.813446),  # Slovakia
@@ -99,7 +110,7 @@ _city_data = {
     'Antwerp': ('51.21992', '4.39625', 7.296879),  # Belgium
     'Arhus': ('56.162939', '10.203921', 26.879421),  # Denmark
     'Baltimore': ('39.2903848', '-76.6121893', 10.258920),  # United States
-    'Bangalore': ('12.9715987', '77.5945627', 911.858398),  # 560001
+    'Bangalore': ('12.9715987', '77.5945627', 911.858398),  # India
     'Bologna': ('44.4942191', '11.3464815', 72.875923),  # Italy
     'Brazilia': ('-14.235004', '-51.92528', 259.063477),  # Brazil
     'Calgary': ('51.045', '-114.0572222', 1046.000000),  # Canada
@@ -136,4 +147,27 @@ def city(name):
     o.name = name
     o.lat, o.lon, o.elevation = data
     o.compute_pressure()
+    return o
+
+def lookup(address):
+    """Given a string `address`, do a Google lookup and return an Observer.
+
+    Avoid calling this very often, to honor Google's terms of service.
+    Instead you can run it once, print out the result, and cut and paste
+    the Observer back into your code to use as often as you like!
+
+    """
+    parameters = urlencode({'address': address, 'sensor': 'false'})
+    url = 'http://maps.googleapis.com/maps/api/geocode/json?' + parameters
+    data = json.loads(urlopen(url).read().decode('utf-8'))
+    results = data['results']
+    if not results:
+        raise ValueError('Google cannot find a place named %r' % address)
+    address_components = results[0]['address_components']
+    location = results[0]['geometry']['location']
+
+    o = ephem.Observer()
+    o.name = ', '.join(c['long_name'] for c in address_components)
+    o.lat = radians(location['lat'])
+    o.lon = radians(location['lng'])
     return o

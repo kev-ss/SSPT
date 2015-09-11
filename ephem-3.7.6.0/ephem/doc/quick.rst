@@ -95,6 +95,9 @@ body.compute(date)
    | ``size`` — Size (diameter in arcseconds)
    | ``radius`` — Size (radius as an angle)
 
+   | ``circumpolar`` — whether it stays above the horizon
+   | ``neverup`` — whether is stays below the horizon
+
  * On Solar System bodies, also sets:
 
    | ``hlon`` — Heliocentric longitude (see next paragraph)
@@ -103,10 +106,12 @@ body.compute(date)
    | ``earth_distance`` — Distance to Earth (AU)
    | ``phase`` — Percent of surface illuminated
 
-   Note that ``hlon`` and ``hlat`` on the ``Sun`` object,
-   which would normally have no meaning
-   since those angles are measured from the Sun's point of view,
-   instead give the heliocentric longitude and latitude of Earth.
+   Both ``hlon`` and ``hlat`` have a special meaning
+   for the Sun and Moon.
+   For a ``Sun`` body,
+   they give the *Earth’s* heliocentric longitude and latitude.
+   For a ``Moon`` body,
+   they give the Moon’s *geocentric* longitude and latitude.
 
  * On planetary moons, also sets:
 
@@ -130,7 +135,7 @@ body.compute(date)
    | ``range`` — Distance from observer to satellite (m)
    | ``range_velocity`` — Range rate of change (m/s)
    | ``eclipsed`` — Whether satellite is in Earth's shadow
-  
+
  * On ``Moon`` bodies, also sets:
 
    | Current libration:
@@ -192,7 +197,8 @@ body.compute(observer)
    set the observer's ``pressure`` to zero to ignore refraction.
 
  * For earth satellite objects,
-   the astrometric coordinates are topocentric instead of geocentric,
+   the astrometric coordinates ``a_ra`` and ``a_dec`` are topocentric
+   instead of geocentric,
    since there is little point in figuring out where the satellite
    would appear on a J2000 (or whatever epoch you are using) star chart
    for an observer sitting at the center of the earth.
@@ -442,6 +448,10 @@ Observers
  >>> lowell.date = '1986/3/13'
  >>> j = ephem.Jupiter()
  >>> j.compute(lowell)
+ >>> print(j.circumpolar)
+ False
+ >>> print(j.neverup)
+ False
  >>> print('%s %s' % (j.alt, j.az))
  0:57:44.7 256:41:01.3
 
@@ -479,6 +489,21 @@ Observers
  * XEphem includes a small database of world cities.
  * Each call to ``city()`` returns a new ``Observer``.
  * Only latitude, longitude, and elevation are set.
+ * XEphem can also perform Google geocoding lookups:
+
+ >>> from ephem import cities
+ >>> ven = cities.lookup('Ven, Sweden')
+
+ * To avoid Google rate limits,
+   avoid performing any ``lookup()`` more than once —
+   instead, print the result to your screen
+   and then cut-and-paste the latitude and longitude into your code.
+ * A ``ValueError`` signals a non-existent place.
+
+ >>> cities.lookup('nonsense string')
+ Traceback (most recent call last):
+   ...
+ ValueError: Google cannot find a place named 'nonsense string'
 
 transit, rising, setting
 ------------------------
@@ -556,7 +581,7 @@ transit, rising, setting
  >>> boston.date = '2009/5/1'
  >>> info = boston.next_pass(iridium_80)
  >>> print("Rise time: %s azimuth: %s" % (info[0], info[1]))
- Rise time: 2009/5/1 00:22:15 azimuth: 104:36:21.5
+ Rise time: 2009/5/1 00:22:15 azimuth: 104:36:16.0
 
  * The ``next_pass()`` method takes an ``EarthSatellite`` body
    and determines when it will next cross above the horizon.
@@ -564,8 +589,8 @@ transit, rising, setting
 
     0  Rise time
     1  Rise azimuth
-    2  Transit time
-    3  Transit altitude
+    2  Maximum altitude time
+    3  Maximum altitude
     4  Set time
     5  Set azimuth
 
@@ -766,6 +791,8 @@ Dates
  * Only when printed, passed to ``str()``, or formatted with ``'%s'``
    does a date express itself as a string
    giving the calendar day and time.
+ * The modern Gregorian calendar is used for recent dates,
+   and the old Julian calendar for dates before October 15, 1582.
  * Dates *always* use Universal Time, *never* your local time zone.
  * Call ``.triple()`` to split a date into its year, month, and day.
  * Call ``.tuple()`` to split a date into its year, month, day,

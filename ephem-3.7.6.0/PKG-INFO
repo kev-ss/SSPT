@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: ephem
-Version: 3.7.5.3
+Version: 3.7.6.0
 Summary: Compute positions of the planets and stars
 Home-page: http://rhodesmill.org/pyephem/
 Author: Brandon Rhodes
@@ -36,6 +36,14 @@ Description: ==============
         The `PyEphem web site`_ offers documentation
         and also links to the project bug tracker, user support forum,
         and source code repository.
+        If you have a C compiler and the
+        `pip Python installer tool <https://pip.pypa.io/en/latest/installing.html>`_
+        on your system,
+        then installing PyEphem should be as easy as::
+        
+          pip install ephem
+        
+        There are also Windows installers in the downloads section below.
         
         The design of PyEphem emphasizes convenience and ease of use.
         Both celestial bodies and the observer's location on Earth

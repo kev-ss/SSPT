@@ -5,7 +5,7 @@
 import ephem._libastro as _libastro
 from math import pi
 
-__version__ = '3.7.5.3'
+__version__ = '3.7.6.0'
 
 twopi = pi * 2.
 halfpi = pi / 2.
@@ -256,22 +256,35 @@ class Observer(_libastro.Observer):
     the Earth's surface.  The constructor takes no parameters; instead,
     set its attributes once you have created it.  Defaults:
 
-    `time` - the moment the `Observer` is created
-    `temperature` - 15 degrees Celsius
-    `pressure` - 1010 mBar
-    `elevation` - 0 meters above sea level
+    `date` - the moment the `Observer` is created
     `lat` - zero degrees latitude
-    `long` - zero degrees longitude
+    `lon` - zero degrees longitude
+    `elevation` - 0 meters above sea level
+    `horizon` - 0 degrees
     `epoch` - J2000
+    `temp` - 15 degrees Celsius
+    `pressure` - 1010 mBar
 
     """
     __slots__ = [ 'name' ]
     elev = _libastro.Observer.elevation
 
+    def copy(self):
+        o = self.__class__()
+        o.date = self.date
+        o.lat = self.lat
+        o.lon = self.lon
+        o.elev = self.elev
+        o.horizon = self.horizon
+        o.epoch = self.epoch
+        o.temp = self.temp
+        o.pressure = self.pressure
+        return o
+
     def __repr__(self):
         """Return a useful textual representation of this Observer."""
         return ('<ephem.Observer date=%r epoch=%r'
-                ' lon=%s lat=%s elevation=%sm'
+                " lon='%s' lat='%s' elevation=%sm"
                 ' horizon=%s temp=%sC pressure=%smBar>'
                 % (str(self.date), str(self.epoch),
                    self.lon, self.lat, self.elevation,
@@ -441,26 +454,28 @@ class Observer(_libastro.Observer):
                                     or pi - tiny < az < pi + tiny
                                     or twopi - tiny < az))
 
-        if on_lower_cusp and on_right_side_of_sky:
-            d0 = self.date
-        elif heading_downward:
-            d0 = visit_transit()
-        else:
-            d0 = visit_antitransit()
-        if heading_downward:
-            d1 = visit_antitransit()
-        else:
-            d1 = visit_transit()
-
         def f(d):
             self.date = d
             body.compute(self)
             return body.alt + body.radius * use_radius - self.horizon
 
-        d = (d0 + d1) / 2.
-        result = Date(newton(f, d, d + minute))
-        self.date = original_date
-        return result
+        try:
+            if on_lower_cusp and on_right_side_of_sky:
+                d0 = self.date
+            elif heading_downward:
+                d0 = visit_transit()
+            else:
+                d0 = visit_antitransit()
+            if heading_downward:
+                d1 = visit_antitransit()
+            else:
+                d1 = visit_transit()
+
+            d = (d0 + d1) / 2.
+            result = Date(newton(f, d, d + minute))
+            return result
+        finally:
+            self.date = original_date
 
     @describe_riset_search
     def previous_rising(self, body, start=None, use_center=False):
@@ -563,7 +578,7 @@ class Coordinate(object):
         elif len(args) == 2:
             self.set(*args)
             if epoch is None:
-                self.epoch = epoch = Date('2000')
+                self.epoch = epoch = Date(J2000)
 
         else:
             raise TypeError(

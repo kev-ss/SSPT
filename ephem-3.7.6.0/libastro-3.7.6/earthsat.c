@@ -170,6 +170,8 @@ obj_earthsat (Now *np, Obj *op)
 
 	/* propagate to np->n_mjd */
 	esat_prop (np, op, &SatX, &SatY, &SatZ, &SatVX, &SatVY, &SatVZ);
+	if (isnan(SatX))
+		return -1;
 	Radius = sqrt (SatX*SatX + SatY*SatY + SatZ*SatZ);
 
 	/* find geocentric EOD equatorial directly from xyz vector */
@@ -386,12 +388,14 @@ double *SatVX, double *SatVY, double *SatVZ)
 	if (sd.deep)
 	    free (sd.deep);
 
-	*SatX = ERAD*posvec.x/1000;	/* earth radii to km */
-	*SatY = ERAD*posvec.y/1000;
-	*SatZ = ERAD*posvec.z/1000;
-	*SatVX = 100*velvec.x;		/* ?? */
-	*SatVY = 100*velvec.y;
-	*SatVZ = 100*velvec.z;
+	/* earth radii to km */
+	*SatX = (ERAD/1000)*posvec.x;	
+	*SatY = (ERAD/1000)*posvec.y;
+	*SatZ = (ERAD/1000)*posvec.z;
+	/* Minutes per day/Seconds by day = Minutes/Second = 1/60 */
+	*SatVX = (ERAD*velvec.x)/(1000*60); 
+	*SatVY =(ERAD*velvec.y)/(1000*60);
+	*SatVZ = (ERAD*velvec.z)/(1000*60);
 #endif
 }
 
@@ -520,7 +524,10 @@ double *Latitude, double *Longitude, double *Height)
 
     *Latitude = atan(SatZ/sqrt(SQR(SatX) + SQR(SatY)));
 
-#if SSPELLIPSE
+#define SSPELLIPSE
+#ifdef SSPELLIPSE
+    /* ECD */
+    *Height = r - EarthRadius*(sqrt(1-(2*EarthFlat-SQR(EarthFlat))*SQR(sin(*Latitude))));
 #else
     *Height = r - EarthRadius;
 #endif
@@ -786,4 +793,4 @@ InitOrbitRoutines(double EpochDay, int AtEod)
 }
 
 /* For RCS Only -- Do Not Edit */
-static char *rcsid[2] = {(char *)rcsid, "@(#) $RCSfile: earthsat.c,v $ $Date: 2009/07/03 23:14:02 $ $Revision: 1.12 $ $Name:  $"};
+static char *rcsid[2] = {(char *)rcsid, "@(#) $RCSfile: earthsat.c,v $ $Date: 2012/10/01 00:05:10 $ $Revision: 1.13 $ $Name:  $"};
