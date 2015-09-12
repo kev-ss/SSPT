@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from time import strftime
 from datetime import datetime
 import ephem
 
